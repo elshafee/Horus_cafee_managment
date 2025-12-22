@@ -1,13 +1,15 @@
+import os
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
 DB_NAME = "database.db"
+FLUTTER_WEB_APP_DIR = 'templates'
 
 
 # =====================================================
@@ -258,6 +260,34 @@ def seed_products():
     return "Products added"
 
 
+
+# Flutter home page requesting
+@app.route('/')
+def render_page():
+    return render_template('index.html')
+
+
+#  Flutter rendering page
+@app.route('/web/')
+def render_page_web():
+    return render_template('index.html')
+
+
+# Flutter rendering data path
+@app.route('/web/<path:name>')
+def return_flutter_doc(name):
+    datalist = str(name).split('/')
+    current_dir = FLUTTER_WEB_APP_DIR
+    if len(datalist) > 1:
+        for i in range(0, len(datalist) - 1):
+            current_dir += '/' + datalist[i]
+    return send_from_directory(current_dir, datalist[-1])
+
+
+# Fluter asset data
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory(os.path.join(FLUTTER_WEB_APP_DIR, 'assets'), filename)
 
 
 # =====================================================
