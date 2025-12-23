@@ -25635,7 +25635,7 @@ _.c=c
 _.d=d
 _.$ti=e},
 Nq:function Nq(a){this.a=a},
-aBf(){var s=A.aL6("http://192.168.0.194:5000",B.nc,B.nc,B.hw),r=new A.Mo(A.c([B.BG],t.i6))
+aBf(){var s=A.aL6("http://127.0.0.1:5000",B.nc,B.nc,B.hw),r=new A.Mo(A.c([B.BG],t.i6))
 r.R(r,B.J3)
 r=new A.a3p($,r,$,new A.a6D(51200),!1)
 r.Ui$=s
@@ -86702,7 +86702,7 @@ case 4:p=3
 e=o.pop()
 j=A.ai(e)
 if(j instanceof A.hn){k=j
-if(k.c===B.n6)throw A.e(A.eM("Cannot reach server at http://192.168.0.194:5000. Check IP/Firewall."))
+if(k.c===B.n6)throw A.e(A.eM("Cannot reach server at http://127.0.0.1:5000. Check IP/Firewall."))
 throw e}else throw e
 s=6
 break
