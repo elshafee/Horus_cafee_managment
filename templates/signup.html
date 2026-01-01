@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horus Cafe - Registration</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@5/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1E1E1E;
+            --primary-color: #BB86FC;
+            --text-color: #FFFFFF;
+        }
+
+        body, html {
+            height: 100%;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden; /* Prevent scroll during splash */
+        }
+
+        /* --- SPLASH SCREEN STYLES --- */
+        #splash-screen {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(187, 134, 252, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .splash-text {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* --- FORM CONTAINER STYLES --- */
+        .main-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .signup-container {
+            background-color: var(--surface-color);
+            padding: 2.5rem;
+            border-radius: 28px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(187, 134, 252, 0.1);
+            transform: translateY(20px);
+            transition: transform 0.6s ease;
+        }
+
+        /* --- INPUTS & BUTTONS --- */
+        .input-group { margin-bottom: 1.2rem; }
+        label { display: block; margin-bottom: 8px; font-size: 0.8rem; color: var(--primary-color); font-weight: 600; }
+        input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            background: #262626;
+            color: white;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 1rem;
+        }
+        input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(187, 134, 252, 0.1); }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            background-color: var(--primary-color);
+            color: #000;
+            border: none;
+            border-radius: 14px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            box-shadow: 0 4px 15px rgba(187, 134, 252, 0.3);
+        }
+
+        /* Custom SweetAlert Styling */
+        .swal2-popup { border-radius: 24px !important; background: #1E1E1E !important; border: 1px solid #333 !important; }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="loader"></div>
+        <div class="splash-text">Horus Cafe</div>
+    </div>
+
+    <div class="main-content" id="main-content">
+        <div class="signup-container" id="form-card">
+            <h2 style="text-align: center; color: var(--primary-color); margin-top: 0;">JOIN US</h2>
+            <form id="signupForm">
+                <div class="input-group">
+                    <label>FULL NAME</label>
+                    <input type="text" name="staff_name" placeholder="Ahmad Elshafee" required>
+                </div>
+                <div class="input-group">
+                    <label>STAFF ID</label>
+                    <input type="number" inputmode="numeric" name="staff_id" placeholder="1181318" required>
+                </div>
+                <div class="input-group">
+                    <label>DEFAULT ROOM</label>
+                    <input type="text" name="room" placeholder="e.g. E322">
+                </div>
+                <button type="submit" id="submitBtn">CREATE ACCOUNT</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // HANDLE SPLASH SCREEN TIMEOUT
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                const content = document.getElementById('main-content');
+                const card = document.getElementById('form-card');
+
+                splash.style.opacity = '0';
+                splash.style.visibility = 'hidden';
+
+                content.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+                document.body.style.overflow = 'auto'; // Re-enable scrolling
+            }, 2000); // 2 seconds splash
+        });
+
+        // HANDLE FORM SUBMISSION
+        const form = document.getElementById('signupForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Sending...";
+
+            const formData = new FormData(form);
+
+            try {
+                // IMPORTANT: Ensure this URL matches your Flask route exactly
+                const response = await fetch('/auth/register_web', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) throw new Error("Network Response Error");
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        title: 'Perfect!',
+                        text: result.message,
+                        icon: 'success',
+                        confirmButtonColor: '#BB86FC'
+                    }).then(() => {
+                        form.reset();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: result.message,
+                        icon: 'error',
+                        confirmButtonColor: '#BB86FC'
+                    });
+                }
+            } catch (error) {
+                Swal.fire({
+                    title: 'Offline',
+                    text: 'Server is not responding. Check your connection.',
+                    icon: 'warning',
+                    confirmButtonColor: '#BB86FC'
+                });
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "CREATE ACCOUNT";
+            }
+        });
+    </script>
+</body>
+</html>

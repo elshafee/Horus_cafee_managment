@@ -1,3 +1,4 @@
+import base64
 import os
 import sqlite3
 from datetime import datetime
@@ -10,6 +11,11 @@ CORS(app)
 
 DB_NAME = "database.db"
 FLUTTER_WEB_APP_DIR = 'templates'
+
+# Ensure the directory exists
+UPLOAD_FOLDER = 'static/profile_images'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 
 # =====================================================
@@ -27,13 +33,15 @@ def init_db():
 
     # USERS
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        staff_name TEXT,
-        staff_id TEXT UNIQUE,
-        room TEXT
-    )
-    """)
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            staff_name TEXT,
+            staff_id TEXT UNIQUE,
+            room TEXT,
+            department TEXT,      -- New Field
+            profile_image TEXT    -- New Field (Stores Base64 string or URL)
+        )
+        """)
 
     # PRODUCTS
     cursor.execute("""
@@ -84,31 +92,109 @@ init_db()
 @app.route("/auth/login", methods=["POST"])
 def login():
     data = request.json
-    staff_name = data["staff_name"]
-    staff_id = data["staff_id"]
-    room = data.get("room", "")
+    staff_id = data.get("staff_id")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT staff_name, staff_id, room, department FROM users WHERE staff_id=?", (staff_id,))
+    user = cursor.fetchone()
+    conn.close()
+
+    if user:
+        # Get the image string from the file system
+        image_path = f"static/profile_images/{staff_id}.jpg"
+        encoded_image = ""
+        if os.path.exists(image_path):
+            with open(image_path, "rb") as img_file:
+                encoded_image = base64.b64encode(img_file.read()).decode('utf-8')
+
+        return jsonify(
+            {"success": True, "staff_name": user[0], "staff_id": user[1], "room": user[2], "department": user[3] or "",
+             "profile_image": encoded_image  # Now sending the actual data
+             })
+
+    return jsonify({"success": False, "message": "User not found"}), 401
+
+
+@app.route('/signup-page')
+def signup_page():
+    return render_template('signup.html')
+
+
+@app.route("/auth/register_web", methods=["POST"])
+def register_web():
+    # Use request.form for HTML submissions
+    staff_name = request.form.get("staff_name")
+    staff_id = request.form.get("staff_id")
+    room = request.form.get("room", "")
 
     conn = get_db()
     cursor = conn.cursor()
 
+    # Check if user exists
     cursor.execute("SELECT * FROM users WHERE staff_id=?", (staff_id,))
     user = cursor.fetchone()
 
     if not user:
-        cursor.execute(
-            "INSERT INTO users (staff_name, staff_id, room) VALUES (?, ?, ?)",
-            (staff_name, staff_id, room)
-        )
+        cursor.execute("INSERT INTO users (staff_name, staff_id, room) VALUES (?, ?, ?)", (staff_name, staff_id, room))
         conn.commit()
+        message = "Success! You can now log in using the app."
+        return jsonify({"success": True, "message": "Account created!"})
+    else:
+        message = "User already exists with this ID."
+        return jsonify({"success": False, "message": "User already exists with this ID."})
 
     conn.close()
 
-    return jsonify({
-        "success": True,
-        "staff_name": staff_name,
-        "staff_id": staff_id,
-        "room": room
-    })
+    # Return a simple success message or redirect
+    return jsonify({"success": False, "message": "Error"})
+
+
+@app.route("/auth/update_profile", methods=["POST"])
+def update_profile():
+    data = request.json
+    staff_id = data.get("staff_id")
+    dept = data.get("department")
+    room = data.get("room")
+    image_b64 = data.get("profile_image")  # The string from Flutter
+
+    print(data)
+    image_url = None
+
+    if image_b64 and len(image_b64) > 100:  # Check if it's a real image string
+        try:
+            # 1. Decode the Base64 string
+            header, encoded = image_b64.split(",", 1) if "," in image_b64 else (None, image_b64)
+            image_data = base64.b64decode(encoded)
+
+            # 2. Define filename: staff_id.jpg
+            filename = f"{staff_id}.jpg"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+            # 3. Save the file to the directory
+            with open(filepath, "wb") as f:
+                f.write(image_data)
+
+            # 4. Create the URL to be stored in the DB
+            image_url = f"/static/profile_images/{filename}"
+        except Exception as e:
+            print(f"Image Save Error: {e}")
+
+    # 5. Update Database
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # If image_url is None, we keep the old one in the DB
+    if image_url:
+        cursor.execute("UPDATE users SET department=?, room=?, profile_image=? WHERE staff_id=?",
+                       (dept, room, image_url, staff_id))
+    else:
+        cursor.execute("UPDATE users SET department=?, room=? WHERE staff_id=?", (dept, room, staff_id))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"success": True, "image_url": image_url})
 
 
 # =====================================================
@@ -127,6 +213,29 @@ def get_products():
 # =====================================================
 # CREATE ORDER
 # =====================================================
+def translate_sugar_to_numbers(text):
+    """
+    Converts Arabic sugar descriptions to numeric spoon counts for ESP32.
+    """
+    if not text:
+        return "0"
+
+    # Mapping Dictionary
+    sugar_map = {
+        "سادة": "0",
+        "ع الريحة": "0.5",
+        "مظبوط": "2",
+        "زيادة": "3"
+    }
+
+    # Replace Arabic words with numbers
+    translated_text = text
+    for arabic, numeric in sugar_map.items():
+        translated_text = translated_text.replace(arabic, numeric)
+
+    return translated_text
+
+
 @app.route("/order", methods=["POST"])
 def create_order():
     data = request.json
@@ -139,15 +248,8 @@ def create_order():
     (staff_name, staff_id, office_boy_id, delivery_room, notes, total_cost, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        data["staff_name"],
-        data["staff_id"],
-        data["office_boy_id"],
-        data["delivery_room"],
-        data.get("notes", ""),
-        0.0,
-        "PENDING",
-        datetime.now().isoformat()
-    ))
+        data["staff_name"], data["staff_id"], data["office_boy_id"], data["delivery_room"], data.get("notes", ""), 0.0,
+        "PENDING", datetime.now().isoformat()))
 
     order_id = cursor.lastrowid
 
@@ -155,12 +257,7 @@ def create_order():
         cursor.execute("""
         INSERT INTO order_items (order_id, product_name, quantity, price)
         VALUES (?, ?, ?, ?)
-        """, (
-            order_id,
-            item["name"],
-            item["qty"],
-            item["price"]
-        ))
+        """, (order_id, item["name"], item["qty"], item["price"]))
 
     conn.commit()
     conn.close()
@@ -176,17 +273,14 @@ def user_orders(staff_id):
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM orders WHERE staff_id=?", (staff_id,))
+    cursor.execute("SELECT * FROM orders WHERE staff_id=? AND status='PENDING'", (staff_id,))
     orders = []
 
     for order in cursor.fetchall():
         cursor.execute("SELECT * FROM order_items WHERE order_id=?", (order["id"],))
         items = [dict(row) for row in cursor.fetchall()]
 
-        orders.append({
-            "order": dict(order),
-            "items": items
-        })
+        orders.append({"order": dict(order), "items": items})
 
     conn.close()
     return jsonify(orders)
@@ -207,9 +301,17 @@ def active_orders(office_boy_id):
     ORDER BY created_at ASC
     """, (office_boy_id,))
 
+    # 1. Fetch the rows and convert them to dictionaries
     orders = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
+    # 2. Loop through each order and translate the 'notes' field
+    for order in orders:
+        if "notes" in order and order["notes"]:
+            # Apply translation here
+            order["notes"] = translate_sugar_to_numbers(order["notes"])
+
+    # 3. Return the modified list to the ESP32
     return jsonify(orders)
 
 
@@ -224,10 +326,7 @@ def update_order_status():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE orders SET status=? WHERE id=?",
-        (status, order_id)
-    )
+    cursor.execute("UPDATE orders SET status=? WHERE id=?", (status, order_id))
     conn.commit()
     conn.close()
 
@@ -239,26 +338,18 @@ def update_order_status():
 # =====================================================
 @app.route("/seed", methods=["GET"])
 def seed_products():
-    products = [
-        ("Coffee", "Drink", 10),
-        ("Tea", "Drink", 8),
-        ("Water", "Drink", 5),
-        ("Sandwich", "Food", 25),
-        ("Croissant", "Food", 20)
-    ]
+    products = [("Coffee", "Drink", 10), ("Tea", "Drink", 8), ("Water", "Drink", 5), ("Sandwich", "Food", 25),
+                ("Croissant", "Food", 20)]
 
     conn = get_db()
     cursor = conn.cursor()
 
     for p in products:
-        cursor.execute(
-            "INSERT INTO products (name, category, price) VALUES (?, ?, ?)", p
-        )
+        cursor.execute("INSERT INTO products (name, category, price) VALUES (?, ?, ?)", p)
 
     conn.commit()
     conn.close()
     return "Products added"
-
 
 
 # Flutter home page requesting
@@ -293,8 +384,4 @@ def serve_assets(filename):
 # =====================================================
 # RUN SERVER
 # =====================================================
-app.run(
-    host="0.0.0.0",
-    port=5000,
-    debug=False
-)
+app.run(host="0.0.0.0", port=5000, debug=False)
