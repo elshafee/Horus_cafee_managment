@@ -1,4 +1,3 @@
----
 ## ☕ Horus Cafe: Enterprise IoT Beverage Management System
 
 **Horus Cafe** is a full-stack smart-ordering ecosystem designed for high-traffic office and university environments. It bridges the gap between digital mobile ordering and physical hardware notification systems, featuring a Flutter-based client, a Flask-powered synchronization engine, and ESP32 IoT display nodes.
