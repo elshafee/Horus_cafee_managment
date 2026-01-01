@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:horus_cafee/features/coponents/dialog_window.dart';
 import 'package:horus_cafee/routes/app_routes.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -52,11 +53,17 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text(
-          "Horus Cafe Assistant",
-          style: TextStyle(color: Colors.white),
+        title: Center(
+          child: const Text(
+            "Horus Cafe Assistant",
+            style: TextStyle(color: Colors.white),
+          ),
         ),
         elevation: 0,
+        leading: IconButton(
+          onPressed: () => showEditBaseUrlDialog(context),
+          icon: Icon(Icons.settings),
+        ),
       ),
       body: Column(
         children: [

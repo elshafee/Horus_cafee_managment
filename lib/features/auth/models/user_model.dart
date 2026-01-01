@@ -1,54 +1,35 @@
 class UserModel {
-  final String id;
   final String name;
   final String employeeCode;
-  final String? officeRoom;
-  final String? department;
+  final String? department; // New
+  final String? primaryRoom; // New
+  final String? profileImage; // New (URL or Base64)
 
   UserModel({
-    required this.id,
     required this.name,
     required this.employeeCode,
-    this.officeRoom,
     this.department,
+    this.primaryRoom,
+    this.profileImage,
   });
 
-  /// Factory constructor to create a User from API JSON or Local Storage Map
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id']?.toString() ?? '',
-      name: json['name'] ?? '',
-      employeeCode: json['employee_code'] ?? '',
-      officeRoom: json['office_room'],
+      name: json['staff_name'] ?? '',
+      employeeCode: json['staff_id'] ?? '',
       department: json['department'],
+      primaryRoom: json['room'],
+      profileImage: json['profile_image'],
     );
   }
 
-  /// Convert User model to Map for Hive/Local Storage
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'name': name,
-      'employee_code': employeeCode,
-      'office_room': officeRoom,
+      'staff_name': name,
+      'staff_id': employeeCode,
       'department': department,
+      'room': primaryRoom,
+      'profile_image': profileImage,
     };
-  }
-
-  /// Create a copy of the user with modified fields
-  UserModel copyWith({
-    String? id,
-    String? name,
-    String? employeeCode,
-    String? officeRoom,
-    String? department,
-  }) {
-    return UserModel(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      employeeCode: employeeCode ?? this.employeeCode,
-      officeRoom: officeRoom ?? this.officeRoom,
-      department: department ?? this.department,
-    );
   }
 }

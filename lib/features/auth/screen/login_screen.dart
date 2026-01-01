@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:horus_cafee/features/auth/provider/auth_provider.dart';
+import 'package:horus_cafee/features/coponents/dialog_window.dart';
 import 'package:horus_cafee/routes/app_routes.dart';
 import 'package:provider/provider.dart';
 
@@ -31,10 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
-      final success = await authProvider.login(
-        _nameController.text.trim(),
-        _idController.text.trim(),
-      );
+      final success = await authProvider.login(_idController.text.trim());
 
       if (!mounted) return;
 
@@ -62,6 +60,20 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Center(
+          child: const Text(
+            "Horus Cafe Assistant",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+        leading: IconButton(
+          onPressed: () async {
+            showEditBaseUrlDialog(context);
+          },
+          icon: Icon(Icons.settings),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -94,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    hintText: 'e.g. John Doe',
+                    hintText: 'e.g. Ahmad Elshafee',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (value) => (value == null || value.isEmpty)

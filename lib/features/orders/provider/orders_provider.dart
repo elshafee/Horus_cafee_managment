@@ -4,18 +4,18 @@ import 'package:horus_cafee/core/network/dio_client.dart';
 import 'package:horus_cafee/features/order/models/order_model.dart';
 
 class OrdersProvider extends ChangeNotifier {
-  final DioClient _dioClient = DioClient();
   List<OrderModel> _orders = [];
   bool _isLoading = false;
 
   List<OrderModel> get orders => _orders;
   bool get isLoading => _isLoading;
-  String get baseUrl => ApiConstants.baseUrl;
+  Future<String> get baseUrl => ApiConstants.getBaseUrl();
 
   Future<void> fetchOrders(String? staffId) async {
     _isLoading = true;
     _orders = []; // Clear current list so the UI shows fresh data
     notifyListeners();
+    final DioClient _dioClient = await DioClient.create();
 
     try {
       final url = staffId != null
@@ -44,6 +44,8 @@ class OrdersProvider extends ChangeNotifier {
   }
 
   Future<bool> placeOrderFromChat(Map<String, dynamic> data) async {
+    final DioClient _dioClient = await DioClient.create();
+
     try {
       final response = await _dioClient.post(
         ApiConstants.createOrder,

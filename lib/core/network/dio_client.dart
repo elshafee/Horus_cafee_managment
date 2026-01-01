@@ -2,88 +2,77 @@ import 'package:dio/dio.dart';
 import 'package:horus_cafee/core/constants/api_constants.dart';
 
 class DioClient {
-  final Dio _dio;
+  late final Dio _dio;
 
-  DioClient()
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: ApiConstants.baseUrl,
-          connectTimeout: const Duration(
-            milliseconds: ApiConstants.connectionTimeout,
-          ),
-          receiveTimeout: const Duration(
-            milliseconds: ApiConstants.receiveTimeout,
-          ),
-          responseType: ResponseType.json,
-        ),
-      ) {
+  DioClient._internal(this._dio) {
     _initializeInterceptors();
+  }
+
+  /// ✅ ASYNC FACTORY (THIS SOLVES YOUR PROBLEM)
+  static Future<DioClient> create() async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(
+          milliseconds: ApiConstants.connectionTimeout,
+        ),
+        receiveTimeout: const Duration(
+          milliseconds: ApiConstants.receiveTimeout,
+        ),
+        responseType: ResponseType.json,
+      ),
+    );
+
+    return DioClient._internal(dio);
   }
 
   void _initializeInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // Log request for debugging in local development
-          debugPrint("NETWORK: [${options.method}] => PATH: ${options.path}");
-          return handler.next(options);
+          debugPrint("NETWORK: [${options.method}] ${options.uri}");
+          handler.next(options);
         },
         onResponse: (response, handler) {
           debugPrint(
-            "NETWORK: [${response.statusCode}] => PATH: ${response.requestOptions.path}",
+            "NETWORK: [${response.statusCode}] ${response.requestOptions.uri}",
           );
-          return handler.next(response);
+          handler.next(response);
         },
         onError: (DioException e, handler) {
-          debugPrint(
-            "NETWORK ERROR: [${e.response?.statusCode}] => MESSAGE: ${e.message}",
-          );
-          return handler.next(e);
+          debugPrint("NETWORK ERROR: ${e.response?.statusCode} | ${e.message}");
+          handler.next(e);
         },
       ),
     );
   }
 
-  // GET Method
+  // =====================
+  // HTTP METHODS
+  // =====================
+
   Future<Response> get(
     String url, {
     Map<String, dynamic>? queryParameters,
     Options? options,
-    CancelToken? cancelToken,
   }) async {
-    try {
-      final response = await _dio.get(
-        url,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
-      return response;
-    } catch (e) {
-      rethrow;
-    }
+    return _dio.get(url, queryParameters: queryParameters, options: options);
   }
 
-  // POST Method
   Future<Response> post(
     String url, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
-    CancelToken? cancelToken,
   }) async {
-    try {
-      final response = await _dio.post(
-        url,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
-      return response;
-    } catch (e) {
-      rethrow;
-    }
+    return _dio.post(
+      url,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
   }
 }
 
